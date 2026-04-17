@@ -381,7 +381,7 @@ class GroqService:
             for idx, article in enumerate(relevant_articles, 1):
                 title = self._clean_text(article.get("title", "N/A"), max_len=120)
                 category = self._clean_text(article.get("category", "N/A"), max_len=60)
-                desc = rag_service._article_text_for_retrieval(article, max_len=5000) or "No description"
+                desc = rag_service._article_text(article, max_len=5000) or "No description"
                 prompt += f"\n{idx}. **{title}** (Category: {category})\n"
                 prompt += f"   {desc}\n"
         else:
