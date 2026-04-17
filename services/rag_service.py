@@ -1,7 +1,7 @@
 import re
 import numpy as np
 from typing import Dict, Any, List, Tuple
-from sentence_transformers import SentenceTransformer, CrossEncoder
+from sentence_transformers import SentenceTransformer
 from rank_bm25 import BM25Okapi
 from utils.logger import log_info, log_error
 
@@ -25,10 +25,6 @@ class RagService:
     def __init__(self):
         log_info("Loading bi-encoder (all-MiniLM-L6-v2) for dense retrieval...")
         self.embedder = SentenceTransformer("all-MiniLM-L6-v2")
-
-        log_info("Loading cross-encoder (ms-marco-MiniLM-L-6-v2) for reranking...")
-        # This model is specifically trained for passage relevance scoring
-        self.reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 
     # ------------------------------------------------------------------
     # Text cleaning
@@ -218,40 +214,28 @@ class RagService:
                 if contact_kws & set(text.lower().split()):
                     hybrid_scores[i] = min(hybrid_scores[i] + 0.10, 1.0)
 
-        # ── Step 5: Candidate selection ───────────────────────────────
-        top_indices = np.argsort(hybrid_scores)[::-1][: self.TOP_K_RETRIEVE]
-        candidates = [
-            (chunk_texts[i], chunk_metas[i], float(hybrid_scores[i]))
-            for i in top_indices
-            if hybrid_scores[i] >= self.MIN_SCORE
-        ]
-
-        if not candidates:
-            # Graceful fallback: return best chunks ignoring threshold
-            candidates = [
-                (chunk_texts[i], chunk_metas[i], float(hybrid_scores[i]))
-                for i in top_indices[: self.TOP_K_FINAL]
-            ]
-
-        # ── Step 6: Cross-encoder reranking ──────────────────────────
-        pairs = [(query_text, cand[0]) for cand in candidates]
-        rerank_scores = self.reranker.predict(pairs)  # returns raw logits
-
-        reranked = sorted(
-            zip(rerank_scores, candidates),
-            key=lambda x: x[0],
-            reverse=True,
-        )
-
-        # ── Step 7: Build final result list ──────────────────────────
+        # ── Step 5: Candidate selection and Return ───────────────────────────────
+        top_indices = np.argsort(hybrid_scores)[::-1]
+        
         results = []
-        for rerank_score, (chunk_text, meta, hybrid_score) in reranked[: self.TOP_K_FINAL]:
-            results.append({
-                **meta,
-                # Expose scores for debugging; strip before sending to LLM if desired
-                "score": float(rerank_score),
-                "hybrid_score": hybrid_score,
-            })
+        for i in top_indices:
+            if hybrid_scores[i] >= self.MIN_SCORE:
+                results.append({
+                    **chunk_metas[i],
+                    "score": float(hybrid_scores[i]),
+                    "hybrid_score": float(hybrid_scores[i]),
+                })
+                if len(results) >= self.TOP_K_FINAL:
+                    break
+
+        if not results:
+            # Graceful fallback: return best chunks ignoring threshold
+            for i in top_indices[: self.TOP_K_FINAL]:
+                results.append({
+                    **chunk_metas[i],
+                    "score": float(hybrid_scores[i]),
+                    "hybrid_score": float(hybrid_scores[i]),
+                })
 
         return results
 
