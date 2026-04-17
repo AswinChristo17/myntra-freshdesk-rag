@@ -216,7 +216,7 @@ async def webhook_ticket_created_trailing_slash(request: Request):
     """Support webhook calls that include a trailing slash."""
     return await webhook_ticket_created(request)
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root():
     """Root endpoint with API information"""
     return {
