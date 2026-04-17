@@ -1,0 +1,16 @@
+{
+  "ticket": {
+    "id": 12345,
+    "subject": "Unable to reset password",
+    "description": "I've tried resetting my password multiple times but keep getting an error message saying 'Invalid request'. I'm using the correct email address and the reset link is expired. Can you help me reset my password?",
+    "priority": 1,
+    "status": 2,
+    "tags": [
+      "account",
+      "password-reset",
+      "urgent"
+    ],
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  }
+}
